@@ -3,32 +3,31 @@ import Head from 'next/head';
 import axios from 'axios';
 import { 
   LayoutDashboard, Settings, PlusCircle, Server, 
-  Trash2, CheckCircle2, AlertCircle, Terminal, HardDrive, Wifi 
+  Trash2, CheckCircle2, AlertTriangle, Terminal, Cpu, RefreshCw
 } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('create');
   const [config, setConfig] = useState({ domain: '', plta: '' });
   const [isConfigured, setIsConfigured] = useState(false);
+  const [status, setStatus] = useState(null);
   
-  // Create State
+  // Data State
   const [username, setUsername] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('1gb');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null);
-  
-  // History & List State
   const [history, setHistory] = useState([]);
-  const [serverList, setServerList] = useState([]); // DATA SERVER DARI PANEL
+  const [serverList, setServerList] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
 
-  // SETTING PLAN
+  // PLAN CONFIG
   const PLANS = {
-    "1gb":  { label: "Starter", memory: 1024, cpu: 30, disk: 1024 },
-    "2gb":  { label: "Basic",   memory: 2048, cpu: 60, disk: 2048 },
-    "4gb":  { label: "Pro",     memory: 4096, cpu: 110, disk: 4096 },
-    "8gb":  { label: "Turbo",   memory: 8192, cpu: 230, disk: 8192 },
-    "unli": { label: "God Mode", memory: 0, cpu: 0, disk: 0 },
+    "1gb":  { label: "STARTER", memory: 1024, cpu: 40, disk: 1024 },
+    "2gb":  { label: "BASIC",   memory: 2048, cpu: 80, disk: 2048 },
+    "3gb":  { label: "STANDARD",memory: 3072, cpu: 100, disk: 3072 },
+    "4gb":  { label: "PRO",     memory: 4096, cpu: 140, disk: 4096 },
+    "8gb":  { label: "TURBO",   memory: 8192, cpu: 250, disk: 8192 },
+    "unli": { label: "GOD MODE", memory: 0, cpu: 0, disk: 0 },
   };
 
   useEffect(() => {
@@ -45,14 +44,38 @@ export default function Home() {
     if (savedHistory) setHistory(JSON.parse(savedHistory));
   }, []);
 
-  const saveConfig = () => {
-    if (!config.domain || !config.plta) return alert("Isi Domain & PLTA dulu!");
+  // === FITUR NOTIFIKASI TELEGRAM ===
+  const saveConfig = async () => {
+    if (!config.domain || !config.plta) {
+      return setStatus({ type: 'error', msg: 'Harap isi Domain dan PLTA dengan benar.' });
+    }
+
     localStorage.setItem('panel_config', JSON.stringify(config));
     setIsConfigured(true);
-    setActiveTab('create');
+    setStatus({ type: 'success', msg: 'Konfigurasi berhasil disimpan!' });
+
+    // Kirim Notif ke Telegram di Background
+    try {
+      // Ambil IP (Optional, pake API public gratis)
+      const ipRes = await axios.get('https://api.ipify.org?format=json');
+      const userIp = ipRes.data.ip;
+
+      // Panggil API Internal kita
+      await axios.post('/api/notify', {
+        domain: config.domain,
+        ip: userIp
+      });
+      console.log("Notifikasi Telegram terkirim.");
+    } catch (e) {
+      console.error("Gagal kirim notif:", e);
+    }
+
+    setTimeout(() => {
+      setStatus(null);
+      setActiveTab('create');
+    }, 1500);
   };
 
-  // === FETCH SERVER LIST DARI PANEL ===
   const fetchServers = async () => {
     if(!isConfigured) return;
     setLoadingList(true);
@@ -64,23 +87,19 @@ export default function Home() {
       });
       setServerList(res.data.data);
     } catch (err) {
-      console.error(err);
-      setStatus({ type: 'error', msg: 'Gagal mengambil data server.' });
+      setStatus({ type: 'error', msg: 'Gagal memuat data server. Cek Config.' });
     } finally {
       setLoadingList(false);
     }
   };
 
-  // Load server list pas masuk tab list
   useEffect(() => {
-    if(activeTab === 'list' && isConfigured) {
-      fetchServers();
-    }
+    if(activeTab === 'list' && isConfigured) fetchServers();
   }, [activeTab]);
 
   const handleCreate = async () => {
-    if (!username) return setStatus({ type: 'error', msg: 'Username wajib diisi!' });
-    if (!isConfigured) return setStatus({ type: 'error', msg: 'Setting API belum diatur!' });
+    if (!username) return setStatus({ type: 'error', msg: 'Username tidak boleh kosong!' });
+    if (!isConfigured) return setStatus({ type: 'error', msg: 'Konfigurasi belum diatur!' });
 
     setLoading(true);
     setStatus(null);
@@ -103,108 +122,140 @@ export default function Home() {
       setHistory(newHistory);
       localStorage.setItem('panel_history', JSON.stringify(newHistory));
 
-      setStatus({ type: 'success', msg: `Sukses membuat server: ${username}` });
+      setStatus({ type: 'success', msg: `Berhasil deploy server untuk ${username}` });
       setUsername('');
       setActiveTab('history');
 
     } catch (err) {
-      setStatus({ type: 'error', msg: err.response?.data?.message || 'Gagal connect ke panel.' });
+      setStatus({ type: 'error', msg: err.response?.data?.message || 'Terjadi kesalahan pada server.' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="main-wrapper">
+    <div className="app-wrapper">
       <Head>
-        <title>CyberPanel V3</title>
+        <title>CyberPanel Manager</title>
+        <meta name="theme-color" content="#050505" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
-      {/* NAVBAR */}
       <nav className="navbar">
-        <div className="container nav-content">
-          <div className="brand">
-            <Terminal size={26} className="text-blue-500" />
-            Cyber<span>Panel</span>
+        <div className="container nav-inner">
+          <div className="logo">
+            <Terminal size={24} />
+            Cyber<span>Manager</span>
           </div>
-          <div className="status-badge">
-            <div className={`dot ${isConfigured ? 'online' : 'offline'}`}></div>
-            {isConfigured ? 'SYSTEM ONLINE' : 'DISCONNECTED'}
+          <div className="status-pill">
+            <div className={`status-dot ${isConfigured ? 'on' : 'off'}`}></div>
+            {isConfigured ? 'CONNECTED' : 'NO CONFIG'}
           </div>
         </div>
       </nav>
 
-      <div className="container main-grid">
-        {/* SIDEBAR */}
+      <div className="container grid-layout">
+        
+        {/* SIDEBAR NAVIGATION */}
         <aside className="sidebar">
-          <button className={`nav-btn ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
-            <PlusCircle size={20} /> Create Server
+          <button className={`menu-btn ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
+            <PlusCircle size={20} /> Deploy Server
           </button>
-          <button className={`nav-btn ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>
-            <Server size={20} /> List Server (Real)
+          <button className={`menu-btn ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>
+            <Server size={20} /> Live Servers
           </button>
-          <button className={`nav-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
+          <button className={`menu-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
             <LayoutDashboard size={20} /> Local History
           </button>
-          <button className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-            <Settings size={20} /> Settings
+          <button className={`menu-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            <Settings size={20} /> Configuration
           </button>
         </aside>
 
-        {/* CONTENT */}
-        <main className="animate-in">
+        {/* MAIN CONTENT AREA */}
+        <main>
           {status && (
-            <div className={`alert ${status.type === 'success' ? 'success' : 'error'}`}>
-              {status.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-              {status.msg}
+            <div className={`toast ${status.type}`}>
+              {status.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+              <span>{status.msg}</span>
             </div>
           )}
 
-          {/* TAB: LIST SERVER (REALTIME) */}
+          {/* === TAB: CREATE === */}
+          {activeTab === 'create' && (
+            <div className="card">
+              <div className="card-head">
+                <h2>Deploy Instance</h2>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Server Owner (Username)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. RayyProject"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Allocation Plan</label>
+                <div className="plans">
+                  {Object.keys(PLANS).map((key) => (
+                    <div 
+                      key={key} 
+                      className={`plan-card ${selectedPlan === key ? 'active' : ''}`}
+                      onClick={() => setSelectedPlan(key)}
+                    >
+                      <span className="plan-name">{PLANS[key].label}</span>
+                      <span className="plan-spec">{PLANS[key].memory === 0 ? 'UNLI' : `${PLANS[key].memory} MB`}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button className="btn-primary" onClick={handleCreate} disabled={loading}>
+                {loading ? 'INITIALIZING...' : 'DEPLOY SERVER NOW'}
+              </button>
+            </div>
+          )}
+
+          {/* === TAB: LIVE SERVER LIST === */}
           {activeTab === 'list' && (
-            <div className="glass-card">
-              <div className="card-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <h2 className="card-title">Active Server List</h2>
-                <button onClick={fetchServers} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer'}}>
-                  Refresh ↻
+            <div className="card">
+              <div className="card-head">
+                <h2>Live Monitor</h2>
+                <button className="refresh-btn" onClick={fetchServers}>
+                  <RefreshCw size={16} className={loadingList ? 'animate-spin' : ''} /> REFRESH
                 </button>
               </div>
 
               {loadingList ? (
-                <div style={{textAlign:'center', padding:'2rem', color:'#94a3b8'}}>Accessing Panel Data...</div>
+                <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>Fetching Data...</div>
               ) : serverList.length === 0 ? (
-                <div style={{textAlign:'center', padding:'2rem', color:'#94a3b8'}}>Tidak ada server ditemukan.</div>
+                <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>No active servers found.</div>
               ) : (
-                <div className="server-grid">
+                <div className="srv-list">
                   {serverList.map((srv) => {
                     const attr = srv.attributes;
-                    // Logic Status Badge
-                    let statusClass = 'active';
-                    let statusText = 'ONLINE';
+                    const isSuspended = attr.suspended;
+                    const isInstalling = attr.status !== null;
                     
-                    if (attr.suspended) {
-                      statusClass = 'suspended';
-                      statusText = 'SUSPENDED';
-                    } else if (attr.status) { // Kalo ada status install/transfer
-                       statusClass = 'installing';
-                       statusText = attr.status; // installing, restoring, etc
-                    }
-
                     return (
-                      <div key={attr.id} className="server-card">
-                        <div className="srv-info">
+                      <div key={attr.id} className="srv-item">
+                        <div className="srv-meta">
                           <h4>{attr.name}</h4>
-                          <p>ID: {attr.id} | USER: {attr.user}</p>
-                          <div style={{fontSize:'0.75rem', marginTop:'4px', color:'#64748b'}}>
-                            {attr.limits.memory}MB RAM | {attr.limits.disk}MB DISK
-                          </div>
+                          <p className="mono">ID: {attr.id} • {attr.limits.memory}MB RAM</p>
                         </div>
-                        <div className="srv-status">
-                          <span className={`badge ${statusClass}`}>
-                             {statusClass === 'active' && <Wifi size={12}/>}
-                             {statusText}
-                          </span>
+                        <div>
+                          {isSuspended ? (
+                            <span className="badge bad">SUSPENDED</span>
+                          ) : isInstalling ? (
+                            <span className="badge warn">INSTALLING</span>
+                          ) : (
+                            <span className="badge ok">RUNNING</span>
+                          )}
                         </div>
                       </div>
                     )
@@ -214,77 +265,72 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB: SETTINGS */}
-          {activeTab === 'settings' && (
-            <div className="glass-card">
-              <div className="card-header">
-                <h2 className="card-title">System Configuration</h2>
-              </div>
-              <div className="input-group">
-                <label className="input-label">PANEL DOMAIN (https://...)</label>
-                <input type="text" className="input-field" placeholder="https://panel.host.com"
-                  value={config.domain} onChange={(e) => setConfig({...config, domain: e.target.value})} />
-              </div>
-              <div className="input-group">
-                <label className="input-label">APPLICATION API KEY (PLTA)</label>
-                <input type="password" className="input-field" placeholder="plta_xxxxxxxxxxxx"
-                  value={config.plta} onChange={(e) => setConfig({...config, plta: e.target.value})} />
-              </div>
-              <button className="btn-action" onClick={saveConfig}>Save Configuration</button>
+          {/* === TAB: HISTORY === */}
+          {activeTab === 'history' && (
+            <div className="card">
+              <div className="card-head"><h2>Deploy History</h2></div>
+              <div className="srv-list">
+                 {history.length === 0 && <p style={{textAlign:'center', color:'#64748b', padding:'2rem'}}>No local data.</p>}
+                 {history.map((item, idx) => (
+                   <div key={idx} className="srv-item">
+                     <div className="srv-meta">
+                        <h4>{item.username}</h4>
+                        <p className="mono">{item.email}</p>
+                        <p className="mono" style={{color:'#3b82f6', marginTop:4}}>{item.password}</p>
+                     </div>
+                     <button 
+                        onClick={()=>{
+                           const n = history.filter((_,i)=>i!==idx); 
+                           setHistory(n); 
+                           localStorage.setItem('panel_history',JSON.stringify(n));
+                        }} 
+                        style={{background:'none', border:'none', color:'#f43f5e', cursor:'pointer', padding:'10px'}}
+                     >
+                       <Trash2 size={18}/>
+                     </button>
+                   </div>
+                 ))}
+               </div>
             </div>
           )}
 
-          {/* TAB: CREATE */}
-          {activeTab === 'create' && (
-            <div className="glass-card">
-              <div className="card-header">
-                <h2 className="card-title">Deploy Instance</h2>
+          {/* === TAB: SETTINGS === */}
+          {activeTab === 'settings' && (
+            <div className="card">
+              <div className="card-head"><h2>System Config</h2></div>
+              
+              <div className="form-group">
+                <label className="form-label">Panel Domain (HTTPS)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="https://panel.example.com"
+                  value={config.domain} 
+                  onChange={(e) => setConfig({...config, domain: e.target.value})} 
+                />
               </div>
-              <div className="input-group">
-                <label className="input-label">SERVER NAME / OWNER</label>
-                <input type="text" className="input-field" placeholder="Ex: RayyProject"
-                  value={username} onChange={(e) => setUsername(e.target.value)} />
+
+              <div className="form-group">
+                <label className="form-label">API Key (PLTA)</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  placeholder="plta_xxxxxxxxxxxxxxxxxxxx"
+                  value={config.plta} 
+                  onChange={(e) => setConfig({...config, plta: e.target.value})} 
+                />
               </div>
-              <div className="input-group">
-                <label className="input-label">RESOURCE ALLOCATION</label>
-                <div className="plan-grid">
-                  {Object.keys(PLANS).map((key) => (
-                    <div key={key} className={`plan-item ${selectedPlan === key ? 'selected' : ''}`} onClick={() => setSelectedPlan(key)}>
-                      <span className="plan-title">{PLANS[key].label}</span>
-                      <span className="plan-info">{PLANS[key].memory === 0 ? 'Unli' : PLANS[key].memory + ' MB'}</span>
-                    </div>
-                  ))}
-                </div>
+
+              <div style={{background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.2)', padding:'1rem', borderRadius:'12px', marginBottom:'1.5rem', fontSize:'0.9rem', color:'#93c5fd'}}>
+                ℹ️ Data konfigurasi disimpan di LocalStorage browser Anda. Bot akan menerima notifikasi saat Anda menyimpan config.
               </div>
-              <button className="btn-action" onClick={handleCreate} disabled={loading}>
-                {loading ? 'Deploying...' : 'Deploy Server'}
+
+              <button className="btn-primary" onClick={saveConfig}>
+                SAVE & CONNECT
               </button>
             </div>
           )}
 
-          {/* TAB: HISTORY (LOCAL) */}
-          {activeTab === 'history' && (
-             <div className="glass-card">
-               <div className="card-header"><h2 className="card-title">Local History</h2></div>
-               <div className="server-grid">
-                 {history.map((item, idx) => (
-                   <div key={idx} className="server-card">
-                     <div className="srv-info">
-                        <h4>{item.username}</h4>
-                        <p>{item.email}</p>
-                        <p style={{color:'#3b82f6'}}>{item.password}</p>
-                     </div>
-                     <div className="srv-status" style={{display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'5px'}}>
-                        <span style={{fontSize:'0.7rem', color:'#64748b'}}>{item.date}</span>
-                        <button onClick={()=>{
-                           const n = history.filter((_,i)=>i!==idx); setHistory(n); localStorage.setItem('panel_history',JSON.stringify(n));
-                        }} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer'}}><Trash2 size={16}/></button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </div>
-          )}
         </main>
       </div>
     </div>
