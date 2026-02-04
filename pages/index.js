@@ -322,7 +322,7 @@ export default function Home() {
               </div>
 
               <div style={{background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.2)', padding:'1rem', borderRadius:'12px', marginBottom:'1.5rem', fontSize:'0.9rem', color:'#93c5fd'}}>
-                ℹ️ Data konfigurasi disimpan di LocalStorage browser Anda. Bot akan menerima notifikasi saat Anda menyimpan config.
+                ℹ️ Data konfigurasi disimpan di LocalStorage browser Anda.100 Data Anda Aman.
               </div>
 
               <button className="btn-primary" onClick={saveConfig}>
