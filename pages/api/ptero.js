@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+// CONFIG DEFAULT
 const DEFAULT_EGG = 15;
 const DEFAULT_LOC = 1;
 
@@ -9,11 +10,12 @@ export default async function handler(req, res) {
   const { action, host, key, username, plan, identifier, signal, ptlc } = req.body;
 
   if (!host) {
-    return res.status(400).json({ message: 'Missing parameters' });
+    return res.status(400).json({ message: 'Missing parameters: Host is required' });
   }
 
   const cleanHost = host.endsWith('/') ? host.slice(0, -1) : host;
   
+  // Headers untuk Admin API (Buat nampilin list dan buat server)
   const configAdmin = {
     headers: {
       'Authorization': `Bearer ${key}`,
@@ -23,15 +25,19 @@ export default async function handler(req, res) {
   };
 
   try {
-    // === FITUR 1: LIST SERVERS (Admin API) ===
+    // === FITUR 1: LIST SERVERS ===
     if (action === 'list_servers') {
       const response = await axios.get(`${cleanHost}/api/application/servers?include=user,allocations&per_page=50`, configAdmin);
-      return res.status(200).json({ success: true, data: response.data.data });
+      return res.status(200).json({
+        success: true,
+        data: response.data.data
+      });
     }
 
-    // === FITUR 2: CONTROL POWER (Client API) ===
+    // === FITUR BARU: CONTROL POWER SERVER ===
     if (action === 'power') {
-      if (!ptlc) return res.status(400).json({ message: 'Client API Key (PTLC) belum diatur di Settings!' });
+      if (!ptlc) return res.status(400).json({ message: 'Client API Key (PTLC) belum diatur di menu Settings!' });
+      
       const configClient = {
         headers: {
           'Authorization': `Bearer ${ptlc}`,
@@ -39,12 +45,17 @@ export default async function handler(req, res) {
           'Accept': 'application/json',
         }
       };
+      
       await axios.post(`${cleanHost}/api/client/servers/${identifier}/power`, { signal }, configClient);
-      return res.status(200).json({ success: true, message: `Command ${signal} berhasil dikirim!` });
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: `Command ${signal} berhasil dikirim!` 
+      });
     }
 
-    // === FITUR 3: CREATE SERVER (Admin API) ===
-    if (!username || !plan) return res.status(400).json({ message: 'Data kurang lengkap' });
+    // === FITUR 3: CREATE SERVER ===
+    if (!username || !plan) return res.status(400).json({ message: 'Data kurang lengkap untuk create server' });
 
     const randomTag = Math.floor(1000 + Math.random() * 9000);
     const finalUsername = username.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(); 
@@ -52,7 +63,9 @@ export default async function handler(req, res) {
     const password = `${finalUsername}${randomTag}!!`; 
 
     // Create User
-    const userPayload = { email, username: `${finalUsername}${randomTag}`, first_name: finalUsername, last_name: "User", language: "en", password };
+    const userPayload = {
+      email, username: `${finalUsername}${randomTag}`, first_name: finalUsername, last_name: "User", language: "en", password
+    };
     const userRes = await axios.post(`${cleanHost}/api/application/users`, userPayload, configAdmin);
     const userId = userRes.data.attributes.id;
 
@@ -72,7 +85,13 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      data: { username: userPayload.username, email: email, password: password, login: cleanHost, ram: plan.memory === 0 ? 'Unlimited' : `${plan.memory}MB` }
+      data: {
+        username: userPayload.username,
+        email: email,
+        password: password,
+        login: cleanHost,
+        ram: plan.memory === 0 ? 'Unlimited' : `${plan.memory}MB`
+      }
     });
 
   } catch (error) {
