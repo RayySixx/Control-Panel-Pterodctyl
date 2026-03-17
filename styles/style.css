@@ -107,8 +107,8 @@ body::before {
 }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.5rem; }
 .card-head h2 { font-size: 1.5rem; font-weight: 700; color: #fff; }
-.refresh-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; gap: 5px; align-items: center; }
-.refresh-btn:hover { text-decoration: underline; }
+.refresh-btn { background: none; border: none; color: var(--primary); cursor: pointer; font-size: 0.9rem; font-weight: 600; display: flex; gap: 5px; align-items: center; transition: 0.2s; }
+.refresh-btn:hover { text-decoration: underline; color: #fff; }
 
 /* --- INPUTS --- */
 .form-group { margin-bottom: 1.5rem; position: relative; }
@@ -186,3 +186,50 @@ body::before {
 .toast.success { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: #6ee7b7; }
 .toast.error { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); color: #fda4af; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* =========================================
+   TAMBAHAN UNTUK CONTROL PANEL SERVER
+   ========================================= */
+
+.srv-item.clickable { cursor: pointer; }
+.srv-item.clickable:hover { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); transform: translateY(-3px); border-color: var(--primary); }
+
+.network-box {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.network-box p {
+  display: flex; align-items: center; gap: 12px; color: #94a3b8;
+  margin-bottom: 0.75rem; font-size: 0.95rem;
+}
+.network-box p:last-child { margin-bottom: 0; }
+.network-box span { color: #fff; font-weight: 600; }
+
+.power-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.btn-power {
+  border: none; padding: 1.2rem; border-radius: 14px; font-weight: 700;
+  color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
+}
+.btn-power.start { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); }
+.btn-power.start:hover { background: var(--success); color: white; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3); }
+
+.btn-power.restart { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--primary); }
+.btn-power.restart:hover { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3); }
+
+.btn-power.stop { background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--danger); }
+.btn-power.stop:hover { background: var(--danger); color: white; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(244, 63, 94, 0.3); }
+
+.upload-box {
+  display: flex; gap: 1rem; align-items: center;
+  background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 14px; border: 1px dashed rgba(255,255,255,0.2);
+}
+.file-input { flex: 1; color: #94a3b8; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
